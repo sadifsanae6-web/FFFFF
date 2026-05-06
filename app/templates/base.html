@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SmartPurchase{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+  {% if session.get('user') %}
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">SP</div>
+      <div><h1>SmartPurchase</h1><small>Procurement Suite</small></div>
+    </div>
+    <div class="menu-group">PROCÉDURE</div>
+    <a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}" href="{{ url_for('dashboard.index') }}">Tableau de bord</a>
+    <a class="nav-link {% if request.blueprint == 'requests' %}active{% endif %}" href="{{ url_for('requests.index') }}">Demandes</a>
+    <a class="nav-link {% if request.endpoint == 'procurement.consultations' or request.endpoint == 'procurement.offers' %}active{% endif %}" href="{{ url_for('procurement.consultations') }}">Consultations</a>
+    <a class="nav-link {% if request.endpoint in ['procurement.orders', 'procurement.order_detail'] %}active{% endif %}" href="{{ url_for('procurement.orders') }}">Commandes</a>
+    <a class="nav-link {% if request.endpoint in ['procurement.receptions', 'procurement.reception_detail'] %}active{% endif %}" href="{{ url_for('procurement.receptions') }}">Réceptions</a>
+    <a class="nav-link {% if request.endpoint in ['finance.invoices', 'finance.new_invoice'] %}active{% endif %}" href="{{ url_for('finance.invoices') }}">Factures</a>
+    <a class="nav-link {% if request.endpoint in ['finance.payments', 'finance.new_payment'] %}active{% endif %}" href="{{ url_for('finance.payments') }}">Paiement</a>
+    <div class="menu-group">GESTION</div>
+    <a class="nav-link {% if request.endpoint == 'pilotage.index' %}active{% endif %}" href="{{ url_for('pilotage.index') }}">Pilotage</a>
+  </aside>
+  {% endif %}
+
+  <main class="main-content {% if not session.get('user') %}login-wrapper{% endif %}">
+    {% if session.get('user') %}
+    <header class="topbar">
+      <div></div>
+      <div class="top-actions">
+        <div class="user-chip">{{ session['user']['name'] }} · {{ session['user']['role'].capitalize() }}</div>
+        {% if session['user']['role'] == 'demandeur' %}<a class="btn primary" href="{{ url_for('requests.new') }}">+ Nouvelle demande</a>{% endif %}
+        <a class="btn" href="{{ url_for('auth.logout') }}">Déconnexion</a>
+      </div>
+    </header>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, msg in messages %}<div class="flash {{ category }}">{{ msg }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

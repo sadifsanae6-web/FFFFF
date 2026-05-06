@@ -1,0 +1,184 @@
+<form method="post" enctype="multipart/form-data" class="panel form-grid">
+  <label>Projet<input name="project_name" list="project-options-list" value="{{ req.project_name if req else '' }}" required placeholder="Choisir ou saisir un projet"></label>
+  <label>Service<select name="department" required>
+    {% set dept = req.department if req else '' %}
+    {% for d in departments %}<option value="{{ d }}" {% if dept==d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+  </select></label>
+  <label>Type d'achat<select name="purchase_type" required>
+    {% set typ = req.purchase_type if req else '' %}
+    {% for t in purchase_types %}<option value="{{ t }}" {% if typ==t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select></label>
+  <label>Date de besoin<input type="date" name="need_date" value="{{ req.need_date if req and req.need_date else '' }}"></label>
+  <label>Urgence (1 à 4)<input type="number" min="1" max="4" name="urgency" value="{{ req.urgency if req else 2 }}"></label>
+  <label>Criticité (1 à 4)<input type="number" min="1" max="4" name="criticality" value="{{ req.criticality if req else 2 }}"></label>
+  <label class="full">Description générale<textarea name="description">{{ req.description if req else '' }}</textarea></label>
+
+  <div class="full panel section" style="padding:16px">
+    <div class="page-header" style="margin:0 0 12px 0"><h3>Lignes d'achat</h3><p>Ajoute les articles ou services à commander.</p></div>
+    <table class="data-table" id="request-lines-table">
+      <thead>
+        <tr>
+          <th>Article / service</th><th>Référence</th><th>Code fabriquant</th><th>Unité</th><th>Qté</th><th>Prix estimatif</th><th>Contrôle qualité</th><th>Site de livraison</th><th>Détail</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="request-lines-body">
+        {% set lines = req.lines if req and req.lines else [None] %}
+        {% for line in lines %}
+        <tr>
+          <td>
+            <input type="hidden" name="line_type[]" value="article">
+            <div class="line-item-field" data-value="{{ line.item_name if line else '' }}"></div>
+          </td>
+          <td><input name="line_item_reference[]" value="{{ line.item_reference if line else '' }}"></td>
+          <td><input name="line_manufacturer_code[]" value="{{ line.manufacturer_code if line else '' }}"></td>
+          <td><input name="line_uom[]" value="{{ line.uom if line else 'Unité' }}"></td>
+          <td><input type="number" step="0.01" min="0.01" name="line_quantity[]" value="{{ line.quantity if line else 1 }}" required></td>
+          <td><input type="number" step="0.01" min="0" name="line_estimated_unit_price[]" value="{{ line.estimated_unit_price if line else 0 }}" required></td>
+          <td><select name="line_quality_control_required[]"><option value="0" {% if not line or not line.quality_control_required %}selected{% endif %}>Non</option><option value="1" {% if line and line.quality_control_required %}selected{% endif %}>Oui</option></select></td>
+          <td><input name="line_delivery_site[]" value="{{ line.delivery_site if line else 'Dépôt principal' }}"></td>
+          <td><input name="line_description[]" value="{{ line.description if line else '' }}"></td>
+          <td><button type="button" class="action-btn warning" onclick="removeLine(this)">Retirer</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="actions-inline"><button type="button" class="btn" onclick="addLine()">+ Ajouter une ligne</button></div>
+  </div>
+
+  <div class="full panel section" style="padding:16px">
+    <h3>Pièces jointes</h3>
+    <label class="full">Ajouter des fichiers<input type="file" id="request-attachments" name="attachments" multiple></label>
+        <div id="request-attachments-list" class="section"></div>
+
+    {% if req and req.attachments %}
+    <div class="section">
+      <strong>Pièces jointes déjà enregistrées</strong>
+      <table class="data-table">
+        <thead><tr><th>Nom</th><th>Ajoutée le</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for att in req.attachments %}
+          <tr>
+            <td>{{ att.filename }}</td>
+            <td>{{ att.created_at.strftime('%d/%m/%Y %H:%M') if att.created_at else '-' }}</td>
+            <td class="actions-inline">
+              <a class="action-btn" href="{{ url_for('requests.download_attachment', attachment_id=att.id) }}">Consulter</a>
+              <form method="post" action="{{ url_for('requests.delete_attachment', attachment_id=att.id) }}" onsubmit="return confirm('Supprimer cette pièce jointe ?');"><button class="action-btn danger" type="submit">Supprimer</button></form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="full actions-inline">
+    <button class="btn primary" type="submit">Enregistrer</button>
+  </div>
+</form>
+
+<template id="request-line-template">
+  <tr>
+    <td><input type="hidden" name="line_type[]" value="article"><div class="line-item-field" data-value=""></div></td>
+    <td><input name="line_item_reference[]"></td>
+    <td><input name="line_manufacturer_code[]"></td>
+    <td><input name="line_uom[]" value="Unité"></td>
+    <td><input type="number" step="0.01" min="0.01" name="line_quantity[]" value="1" required></td>
+    <td><input type="number" step="0.01" min="0" name="line_estimated_unit_price[]" value="0" required></td>
+    <td><select name="line_quality_control_required[]"><option value="0">Non</option><option value="1">Oui</option></select></td>
+    <td><input name="line_delivery_site[]" value="Dépôt principal"></td>
+    <td><input name="line_description[]"></td>
+    <td><button type="button" class="action-btn warning" onclick="removeLine(this)">Retirer</button></td>
+  </tr>
+</template>
+
+<datalist id="project-options-list">
+  {% for project in project_options %}<option value="{{ project }}"></option>{% endfor %}
+</datalist>
+
+<datalist id="product-options-list">
+  {% for product in product_options %}<option value="{{ product }}"></option>{% endfor %}
+</datalist>
+
+<script>
+const PRODUCT_OPTIONS = {{ product_options|tojson }};
+
+function escapeHtml(value){
+  return String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function buildItemField(lineType, value=''){
+  return `
+      <input name="line_item_name[]" list="product-options-list" value="${escapeHtml(value)}" required placeholder="Sélectionner ou saisir un produit">
+    `;
+}
+
+function toggleLineItemField(select){
+  const row = select.closest('tr');
+  const wrapper = row.querySelector('.line-item-field');
+  let currentValue = '';
+  const currentField = wrapper.querySelector('[name="line_item_name[]"]');
+  if(currentField){ currentValue = currentField.value || wrapper.dataset.value || ''; }
+  wrapper.innerHTML = buildItemField(select.value, currentValue);
+}
+
+function initializeLineFields(){
+  document.querySelectorAll('#request-lines-body tr').forEach(row => {
+    const select = row.querySelector('.line-type-select') || {value: 'article', closest: () => row};
+    const wrapper = row.querySelector('.line-item-field');
+    toggleLineItemField(select);
+    const field = wrapper.querySelector('[name="line_item_name[]"]');
+    if(field && wrapper.dataset.value){ field.value = wrapper.dataset.value; }
+  });
+}
+
+function addLine(){
+  const tpl = document.getElementById('request-line-template');
+  const fragment = tpl.content.cloneNode(true);
+  document.getElementById('request-lines-body').appendChild(fragment);
+  const lastRow = document.querySelector('#request-lines-body tr:last-child');
+  toggleLineItemField(lastRow.querySelector('.line-type-select') || {value:'article', closest: () => lastRow});
+}
+function removeLine(btn){
+  const body = document.getElementById('request-lines-body');
+  if(body.children.length > 1){ btn.closest('tr').remove(); }
+}
+(function setupManagedFiles(inputId, listId){
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  if(!input || !list){ return; }
+  let currentFiles = [];
+  function syncInput(){
+    const dt = new DataTransfer();
+    currentFiles.forEach(file => dt.items.add(file));
+    input.files = dt.files;
+  }
+  function render(){
+    if(currentFiles.length === 0){
+      list.innerHTML = '';
+      return;
+    }
+    list.innerHTML = currentFiles.map((file, index) => `
+      <div class="actions-inline" style="justify-content:space-between;margin:6px 0">
+        <span>${file.name}</span>
+        <button type="button" class="action-btn danger" data-index="${index}">Retirer</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('button[data-index]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFiles.splice(Number(btn.dataset.index), 1);
+        syncInput();
+        render();
+      });
+    });
+  }
+  input.addEventListener('change', () => {
+    currentFiles = currentFiles.concat(Array.from(input.files));
+    syncInput();
+    render();
+  });
+  render();
+})('request-attachments', 'request-attachments-list');
+
+document.addEventListener('DOMContentLoaded', initializeLineFields);
+</script>

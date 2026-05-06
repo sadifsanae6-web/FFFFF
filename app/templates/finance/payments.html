@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Paiements</h2><p>Paiement possible uniquement sur les quantités acceptées</p></div>
+<div class="panel section">
+  <h3>Factures à traiter</h3>
+  <table class="data-table">
+    <thead><tr><th>Facture</th><th>Commande</th><th>Montant</th><th>Déjà payé</th><th>Reste</th><th>Payable maintenant</th><th>Blocage</th><th>Statut</th><th>Action</th></tr></thead>
+    <tbody>
+      {% for invoice in invoices %}
+      <tr>
+        <td>{{ invoice.code }}</td>
+        <td>{{ invoice.purchase_order.code }}</td>
+        <td>{{ '%.2f'|format(invoice.amount) }} DH</td>
+        <td>{{ '%.2f'|format(invoice.paid_total) }} DH</td>
+        <td>{{ '%.2f'|format(invoice.remaining_amount) }} DH</td>
+        <td>{{ '%.2f'|format(invoice.max_payable_now) }} DH</td>
+        <td>{% if invoice.purchase_order.payment_blocked %}<span class="badge danger">Partie litigieuse bloquée</span>{% else %}<span class="badge success">Pas de blocage</span>{% endif %}</td>
+        <td><span class="badge {{ badge_class(invoice.status) }}">{{ display_status(invoice.status) }}</span></td>
+        <td>{% if invoice.is_payable() %}<a class="action-btn primary" href="{{ url_for('finance.new_payment', invoice_id=invoice.id) }}">Payer</a>{% else %}-{% endif %}</td>
+      </tr>
+      {% else %}<tr><td colspan="9">Aucune facture trouvée.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel section">
+  <h3>Historique des paiements</h3>
+  <table class="data-table"><thead><tr><th>Facture</th><th>Montant</th><th>Méthode</th><th>Référence</th><th>Date</th><th>Statut</th></tr></thead><tbody>{% for payment in payments_list %}<tr><td>{{ payment.invoice.code }}</td><td>{{ '%.2f'|format(payment.amount) }} DH</td><td>{{ payment.method }}</td><td>{{ payment.reference or '-' }}</td><td>{{ payment.payment_date.strftime('%d/%m/%Y') if payment.payment_date else '-' }}</td><td><span class="badge {{ badge_class(payment.status) }}">{{ display_status(payment.status) }}</span></td></tr>{% else %}<tr><td colspan="6">Aucun paiement enregistré.</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Modifier la commande</h2><p>{{ order.code }}</p></div>
+<form method="post" class="panel section form-grid">
+  <label>Fournisseur<input name="supplier_name" value="{{ order.supplier_name }}" required></label>
+  <label>Email<input name="supplier_email" value="{{ order.supplier_email }}"></label>
+  <label>Téléphone<input name="supplier_phone" value="{{ order.supplier_phone }}"></label>
+  <label>Montant<input type="number" step="0.01" min="0" name="amount" value="{{ order.amount }}" required></label>
+  <label>Site de réception<input name="reception_site" value="{{ order.reception_site }}"></label>
+
+  <div class="full panel section">
+    <h3>Lignes de commande</h3>
+    <table class="data-table">
+      <thead><tr><th>Article</th><th>Référence</th><th>UM</th><th>Qté</th><th>PU</th><th>Site</th><th>CQ</th></tr></thead>
+      <tbody>
+        {% for line in order.lines %}
+        <tr>
+          <td><input name="item_name_{{ line.id }}" value="{{ line.item_name }}" required></td>
+          <td><input name="item_reference_{{ line.id }}" value="{{ line.item_reference }}"></td>
+          <td><input name="uom_{{ line.id }}" value="{{ line.uom }}"></td>
+          <td><input type="number" step="0.01" min="0.01" name="quantity_{{ line.id }}" value="{{ line.quantity_ordered }}" required></td>
+          <td><input type="number" step="0.01" min="0" name="unit_price_{{ line.id }}" value="{{ line.unit_price }}" required></td>
+          <td><input name="delivery_site_{{ line.id }}" value="{{ line.delivery_site }}"></td>
+          <td><select name="quality_control_required_{{ line.id }}"><option value="0" {% if not line.quality_control_required %}selected{% endif %}>Non</option><option value="1" {% if line.quality_control_required %}selected{% endif %}>Oui</option></select></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="full actions-inline">
+    <button class="btn primary" type="submit">Enregistrer les modifications</button>
+    <a class="btn" href="{{ url_for('procurement.order_detail', order_id=order.id) }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Archives des offres fournisseurs</h2>
+  <p>{{ req.code }} - {{ req.project_name }}</p>
+</div>
+
+<div class="toolbar">
+  <a class="btn" href="{{ url_for('procurement.offers', request_id=req.id) }}">Retour aux offres</a>
+</div>
+
+<div class="panel section">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Fournisseur</th>
+        <th>Email</th>
+        <th>Téléphone</th>
+        <th>Adresse</th>
+        <th>Interlocuteur</th>
+        <th>Réf. fournisseur</th>
+        <th>Montant</th>
+        <th>Délai</th>
+        <th>Notes</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for offer in offers_list %}
+      <tr>
+        <td>{{ offer.supplier_name }}</td>
+        <td>{{ offer.supplier_email or '-' }}</td>
+        <td>{{ offer.supplier_phone or '-' }}</td>
+        <td>{{ offer.supplier_address or '-' }}</td>
+        <td>{{ offer.contact_person or '-' }}</td>
+        <td>{{ offer.supplier_reference or '-' }}</td>
+        <td>{% if offer.amount %}{{ '%.2f'|format(offer.amount) }} DH{% else %}-{% endif %}</td>
+        <td>{% if offer.delay_days %}{{ offer.delay_days }} j{% else %}-{% endif %}</td>
+        <td>{{ offer.notes or '-' }}</td>
+        <td class="actions">
+          <form method="post" action="{{ url_for('procurement.restore_offer', offer_id=offer.id) }}" onsubmit="return confirm('Restaurer cette offre ?');">
+            <button class="action-btn success" type="submit">Restaurer</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="10">Aucune offre archivée.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

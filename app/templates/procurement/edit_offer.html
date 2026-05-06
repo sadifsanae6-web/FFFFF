@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Modifier une offre</h2><p>{{ offer.purchase_request.code }} - {{ offer.purchase_request.project_name }}</p></div>
+<form method="post" class="panel form-grid">
+  <label>Fournisseur
+    <input name="supplier_name" id="edit_supplier_name" list="edit_supplier_name_list" value="{{ offer.supplier_name }}" required>
+    <datalist id="edit_supplier_name_list">
+      {% for supplier in supplier_catalog %}
+      <option value="{{ supplier.name }}"></option>
+      {% endfor %}
+    </datalist>
+  </label>
+  <label>Email fournisseur<input type="text" name="supplier_email" id="edit_supplier_email" value="{{ offer.supplier_email }}"></label>
+  <label>Téléphone fournisseur<input name="supplier_phone" id="edit_supplier_phone" value="{{ offer.supplier_phone }}"></label>
+  <label>Adresse fournisseur<input name="supplier_address" id="edit_supplier_address" value="{{ offer.supplier_address }}"></label>
+  <label>Service<input name="supplier_service" id="edit_supplier_service" value="{{ offer.supplier_service }}"></label>
+  <label>Interlocuteur<input name="contact_person" value="{{ offer.contact_person }}"></label>
+  <label>Réf. fournisseur<input name="supplier_reference" value="{{ offer.supplier_reference }}"></label>
+  <label>Type d'offre<select name="is_plan_b_offer"><option value="0" {% if not offer.is_plan_b_offer %}selected{% endif %}>Offre principale</option><option value="1" {% if offer.is_plan_b_offer %}selected{% endif %}>Offre plan B</option></select></label>
+
+  <div class="full panel section" style="padding:16px">
+    <h3>Lignes de l'offre fournisseur</h3>
+    <p class="muted">Saisis uniquement le Prix HT pour les produits commandés dans la demande d'achat.</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>Article commandé</th><th>Quantité commandée</th><th>Prix HT</th></tr>
+      </thead>
+      <tbody>
+        {% for req_line in offer.purchase_request.lines %}
+        {% set saved_line = (offer.lines|selectattr('request_line_id', 'equalto', req_line.id)|first) %}
+        <tr>
+          <td>
+            {{ req_line.item_name }}
+            <input type="hidden" name="offer_line_request_line_id[]" value="{{ req_line.id }}">
+          </td>
+          <td>{{ req_line.quantity }}</td>
+          <td><input type="number" step="0.01" min="0" name="offer_line_price_ht[]" value="{{ saved_line.price_ht if saved_line else req_line.estimated_unit_price }}"></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">Aucune ligne dans la demande d'achat.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <label class="full">Notes<textarea name="notes" rows="3">{{ offer.notes }}</textarea></label>
+  <label class="full">REMARQUES<textarea name="remarks" rows="4">{{ offer.remarks }}</textarea></label>
+  <div class="full actions-inline">
+    <button class="btn primary" type="submit">Enregistrer les modifications</button>
+    <a class="btn" href="{{ url_for('procurement.generate_offer_price_request', offer_id=offer.id) }}">Générer la demande de prix</a>
+  </div>
+</form>
+<script>
+  const supplierCatalogEdit = {{ supplier_catalog | tojson }};
+  const supplierByNameEdit = Object.fromEntries(supplierCatalogEdit.map(item => [item.name.toLowerCase(), item]));
+  const supplierSelectEdit = document.getElementById('edit_supplier_name');
+  const emailInputEdit = document.getElementById('edit_supplier_email');
+  const phoneInputEdit = document.getElementById('edit_supplier_phone');
+  const addressInputEdit = document.getElementById('edit_supplier_address');
+  const serviceInputEdit = document.getElementById('edit_supplier_service');
+  function fillEditSupplierFields(input) {
+    const selected = supplierByNameEdit[(input.value || '').trim().toLowerCase()] || {};
+    emailInputEdit.value = selected.email || '';
+    phoneInputEdit.value = selected.phone || '';
+    addressInputEdit.value = selected.address || '';
+    serviceInputEdit.value = selected.service || '';
+  }
+  supplierSelectEdit?.addEventListener('change', function () { fillEditSupplierFields(this); });
+  supplierSelectEdit?.addEventListener('input', function () { fillEditSupplierFields(this); });
+</script>
+{% endblock %}

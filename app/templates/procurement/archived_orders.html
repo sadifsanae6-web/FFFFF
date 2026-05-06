@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Archives des commandes</h2><p>Commandes archivées et restaurables</p></div>
+<div class="panel">
+  <table class="data-table">
+    <thead><tr><th>N° commande</th><th>Demande</th><th>Projet</th><th>Fournisseur</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for order in orders_list %}
+      <tr>
+        <td>{{ order.code }}</td>
+        <td>{{ order.purchase_request.code }}</td>
+        <td>{{ order.purchase_request.project_name }}</td>
+        <td>{{ order.supplier_name }}</td>
+        <td>{{ '%.2f'|format(order.amount) }} DH</td>
+        <td><span class="badge {{ badge_class(order.status) }}">{{ display_status(order.status) }}</span></td>
+        <td class="actions-inline">
+          <a class="action-btn" href="{{ url_for('procurement.order_detail', order_id=order.id) }}">Voir</a>
+          <form method="post" action="{{ url_for('procurement.restore_order', order_id=order.id) }}" onsubmit="return confirm('Restaurer cette commande ?');"><button class="action-btn primary" type="submit">Restaurer</button></form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="7">Aucune commande archivée.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Archives des factures</h2>
+  <p>Consultation des factures archivées</p>
+</div>
+
+<div class="cards-grid three">
+  <div class="stat-card">
+    <div class="title">Factures archivées</div>
+    <div class="value">{{ total }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="title">Reste à payer</div>
+    <div class="value">{{ '%.2f'|format(reste) }} DH</div>
+  </div>
+  <div class="stat-card">
+    <div class="title">Navigation</div>
+    <a class="btn" href="{{ url_for('finance.invoices') }}">Retour aux factures</a>
+  </div>
+</div>
+
+<div class="panel">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>N° facture</th>
+        <th>Fournisseur</th>
+        <th>Montant</th>
+        <th>Payé</th>
+        <th>Reste</th>
+        <th>Statut</th>
+        <th>Échéance</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for invoice in invoices_list %}
+      <tr>
+        <td>{{ invoice.code }}</td>
+        <td>{{ invoice.supplier_name }}</td>
+        <td>{{ '%.2f'|format(invoice.amount) }} DH</td>
+        <td>{{ '%.2f'|format(invoice.paid_total) }} DH</td>
+        <td>{{ '%.2f'|format(invoice.remaining_amount) }} DH</td>
+        <td><span class="badge {{ badge_class(invoice.status) }}">{{ display_status(invoice.status) }}</span></td>
+        <td>{{ invoice.due_date.strftime('%d/%m/%Y') if invoice.due_date else '-' }}</td>
+        <td class="actions">
+          <form method="post" action="{{ url_for('finance.restore_invoice', invoice_id=invoice.id) }}" onsubmit="return confirm('Restaurer cette facture ?');">
+            <button class="action-btn primary" type="submit">Restaurer</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8">Aucune facture archivée.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Détail commande</h2><p>{{ order.code }}</p></div>
+{% if session['user']['role'] == 'acheteur' %}<div class="section actions-inline"><a class="btn" href="{{ url_for('procurement.edit_order', order_id=order.id) }}">Modifier</a><a class="btn" href="{{ url_for('procurement.export_order_purchase_order', order_id=order.id) }}">Exporter le bon de commande</a>{% if order.status != 'archivee' %}<form method="post" action="{{ url_for('procurement.archive_order', order_id=order.id) }}" onsubmit="return confirm('Archiver cette commande ?');"><button class="btn" type="submit">Archiver</button></form>{% else %}<form method="post" action="{{ url_for('procurement.restore_order', order_id=order.id) }}"><button class="btn primary" type="submit">Restaurer</button></form>{% endif %}</div>{% endif %}
+<div class="detail-card">
+  <div class="detail-grid">
+    <div><div class="label">Commande</div>{{ order.code }}</div>
+    <div><div class="label">Fournisseur actuel</div>{{ order.supplier_name }}</div>
+    <div><div class="label">Montant</div>{{ '%.2f'|format(order.amount) }} DH</div>
+    <div><div class="label">Statut</div><span class="badge {{ badge_class(order.status) }}">{{ display_status(order.status) }}</span></div>
+    <div><div class="label">Qté commandée</div>{{ order.qty_ordered_total }}</div>
+    <div><div class="label">Qté livrée</div>{{ order.qty_delivered_total }}</div>
+    <div><div class="label">Qté acceptée</div>{{ order.qty_accepted_total }}</div>
+    <div><div class="label">Qté rejetée</div>{{ order.qty_rejected_total }}</div>
+    <div><div class="label">Reste à livrer</div>{% if order.status == 'annulee' %}0{% else %}{{ order.qty_remaining_total }}{% endif %}</div>
+    <div><div class="label">Paiement</div>{% if order.status == 'annulee' or order.payment_blocked %}<span class="badge danger">Bloqué</span>{% else %}<span class="badge success">Partie non litigieuse payable</span>{% endif %}</div>
+  </div>
+</div>
+
+<div class="panel section">
+  <h3>Lignes de commande</h3>
+  <table class="data-table">
+    <thead><tr><th>Article</th><th>Référence</th><th>UM</th><th>Qté commandée</th><th>Livrée</th><th>Acceptée</th><th>Rejetée</th><th>Restante</th><th>Statut</th></tr></thead>
+    <tbody>
+      {% for line in order.lines %}
+      <tr>
+        <td>{{ line.item_name }}</td><td>{{ line.item_reference or '-' }}</td><td>{{ line.uom }}</td><td>{{ line.quantity_ordered }}</td>
+        <td>{{ line.quantity_delivered_total }}</td><td>{{ line.quantity_accepted_total }}</td><td>{{ line.quantity_rejected_total }}</td><td>{% if order.status == 'annulee' %}0{% else %}{{ line.quantity_remaining_to_deliver }}{% endif %}</td><td><span class="badge {{ badge_class(line.status) }}">{{ display_status(line.status) }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel section">
+  <h3>Historique des commandes de cette demande</h3>
+  <table class="data-table">
+    <thead><tr><th>N° commande</th><th>Fournisseur</th><th>Montant</th><th>Statut</th><th>Commande le</th></tr></thead>
+    <tbody>{% for item in history %}<tr><td>{{ item.code }}</td><td>{{ item.supplier_name }}</td><td>{{ '%.2f'|format(item.amount) }} DH</td><td><span class="badge {{ badge_class(item.status) }}">{{ display_status(item.status) }}</span></td><td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td></tr>{% else %}<tr><td colspan="5">Aucun historique.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+
+{% if session['user']['role'] == 'acheteur' %}
+<div class="cards-grid two section">
+  <form class="panel" method="post" action="{{ url_for('procurement.replace_order', order_id=order.id) }}">
+    <h3>Activer le plan B fournisseur</h3>
+    {% if order.status != 'annulee' and alternatives %}
+      <label>Offre alternative<select name="offer_id">{% for alt in alternatives %}<option value="{{ alt.id }}">{{ alt.supplier_name }} — {{ '%.2f'|format(alt.amount) }} DH</option>{% endfor %}</select></label>
+      <label>Motif de l'empêchement<input name="reason" placeholder="Ex : rupture de stock"></label>
+      <button class="btn danger" type="submit">Créer une nouvelle commande de secours</button>
+    {% else %}<p class="muted">Aucune offre alternative disponible.</p>{% endif %}
+  </form>
+
+  <form class="panel form-grid" method="post" action="{{ url_for('procurement.add_plan_b_offer', order_id=order.id) }}" id="plan-b-offer-form">
+    <h3 class="full">Ajouter une nouvelle offre plan B</h3>
+    <label>Fournisseur
+      <input name="supplier_name" id="plan_b_supplier_name" list="plan_b_supplier_name_list" required placeholder="Choisir ou saisir un fournisseur">
+      <datalist id="plan_b_supplier_name_list">
+        {% for supplier in supplier_catalog %}
+        <option value="{{ supplier.name }}"></option>
+        {% endfor %}
+      </datalist>
+    </label>
+    <label>Email fournisseur<input type="text" name="supplier_email" id="plan_b_supplier_email"></label>
+    <label>Téléphone fournisseur<input name="supplier_phone" id="plan_b_supplier_phone"></label>
+    <label>Adresse fournisseur<input name="supplier_address" id="plan_b_supplier_address"></label>
+    <label>Service<input name="supplier_service" id="plan_b_supplier_service"></label>
+    <label>Interlocuteur<input name="contact_person"></label>
+    <label>Réf. fournisseur<input name="supplier_reference"></label>
+    <div class="full">
+      <h4>Produits commandés</h4>
+      <table class="data-table">
+        <thead><tr><th>Article commandé</th><th>Quantité commandée</th><th>Prix HT</th></tr></thead>
+        <tbody>
+          {% for line in order.lines %}
+          <tr>
+            <td>{{ line.item_name }}<input type="hidden" name="order_line_ids" value="{{ line.id }}"></td>
+            <td>{{ line.quantity_ordered }}</td>
+            <td><input type="number" step="0.01" min="0" name="price_ht_{{ line.id }}" value="{{ '%.2f'|format(line.unit_price or 0) }}" required></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <label class="full">Remarque<textarea name="remarks" rows="3" placeholder="Remarque à afficher dans le bon de commande"></textarea></label>
+    <div class="full"><button class="btn primary" type="submit">Ajouter l'offre plan B</button></div>
+  </form>
+</div>
+{% endif %}
+
+<div class="panel section">
+  <h3>Journal d'audit</h3>
+  <table class="data-table"><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détail</th></tr></thead><tbody>{% for log in logs %}<tr><td>{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ log.actor_name }}</td><td>{{ log.action }}</td><td>{{ log.details }}</td></tr>{% else %}<tr><td colspan="4">Aucun évènement.</td></tr>{% endfor %}</tbody></table>
+</div>
+
+<script>
+  const planBSupplierCatalog = {{ supplier_catalog | tojson }};
+  const planBSupplierByName = Object.fromEntries(planBSupplierCatalog.map(item => [item.name.toLowerCase(), item]));
+  const planBSupplierSelect = document.getElementById('plan_b_supplier_name');
+  const planBEmailInput = document.getElementById('plan_b_supplier_email');
+  const planBPhoneInput = document.getElementById('plan_b_supplier_phone');
+  const planBAddressInput = document.getElementById('plan_b_supplier_address');
+  const planBServiceInput = document.getElementById('plan_b_supplier_service');
+
+  function fillPlanBSupplierFields(input) {
+    const selected = planBSupplierByName[(input.value || '').trim().toLowerCase()] || {};
+    planBEmailInput.value = selected.email || '';
+    planBPhoneInput.value = selected.phone || '';
+    planBAddressInput.value = selected.address || '';
+    planBServiceInput.value = selected.service || '';
+  }
+
+  planBSupplierSelect?.addEventListener('change', function () { fillPlanBSupplierFields(this); });
+  planBSupplierSelect?.addEventListener('input', function () { fillPlanBSupplierFields(this); });
+</script>
+{% endblock %}

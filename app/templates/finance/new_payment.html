@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Enregistrer un paiement</h2><p>Règlement de la facture {{ invoice.code }}</p></div>
+<div class="detail-card" style="margin-bottom:16px"><div class="detail-grid"><div><div class="label">Commande</div>{{ invoice.purchase_order.code }}</div><div><div class="label">Montant facture</div>{{ '%.2f'|format(invoice.amount) }} DH</div><div><div class="label">Déjà payé</div>{{ '%.2f'|format(invoice.paid_total) }} DH</div><div><div class="label">Payable maintenant</div>{{ '%.2f'|format(payable_now) }} DH</div><div><div class="label">Accepté de référence</div>{{ '%.2f'|format(invoice.accepted_amount_reference) }} DH</div></div></div>
+<form method="post" class="panel form-grid">
+  <label>Montant payé<input type="number" step="0.01" max="{{ payable_now }}" name="amount" value="{{ '%.2f'|format(payable_now) }}" required></label>
+  <label>Méthode<select name="method"><option>Espèces</option><option>Virement</option><option>Chèque</option></select></label>
+  <label class="full">Référence<input name="reference"></label>
+  <div class="full"><button class="btn primary" type="submit">Confirmer le paiement</button></div>
+</form>
+{% endblock %}

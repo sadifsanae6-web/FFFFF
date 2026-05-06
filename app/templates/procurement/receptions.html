@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Réceptions</h2><p>Gestion détaillée des réceptions fournisseurs par ligne de commande</p></div>
+<div class="panel">
+  <table class="data-table">
+    <thead><tr><th>N° commande</th><th>Projet</th><th>Fournisseur</th><th>Statut</th><th>Dernière réception</th><th>Blocage paiement</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for order in orders_list %}
+      <tr>
+        <td>{{ order.code }}</td>
+        <td>{{ order.purchase_request.project_name }}</td>
+        <td>{{ order.supplier_name }}</td>
+        <td><span class="badge {{ badge_class(order.status) }}">{{ display_status(order.status) }}</span></td>
+        <td>{{ order.latest_reception.reception_date.strftime('%d/%m/%Y') if order.latest_reception else '-' }}</td>
+        <td>{% if order.status == 'annulee' or order.payment_blocked %}<span class="badge danger">Bloqué</span>{% else %}<span class="badge success">Libre</span>{% endif %}</td>
+        <td class="actions-inline"><a class="action-btn primary" href="{{ url_for('procurement.reception_detail', order_id=order.id) }}">{{ order.reception_action_label }}</a></td>
+      </tr>
+      {% else %}<tr><td colspan="7">Aucune commande trouvée.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

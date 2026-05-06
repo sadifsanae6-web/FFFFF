@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Archives des demandes</h2>
+  <p>Consultation des demandes d'achat archivées.</p>
+</div>
+
+<div class="toolbar">
+  <a class="btn" href="{{ url_for('requests.index') }}">Retour aux demandes</a>
+</div>
+
+<div class="panel">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>Projet</th>
+        <th>Service</th>
+        <th>Type</th>
+        <th>Montant</th>
+        <th>Priorité</th>
+        <th>Statut</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requests_list %}
+      <tr>
+        <td>{{ req.code }}</td>
+        <td>{{ req.project_name }}</td>
+        <td>{{ req.department }}</td>
+        <td>{{ req.purchase_type }}</td>
+        <td>{{ '%.2f'|format(req.estimated_amount) }} DH</td>
+        <td><span class="priority-pill">{{ format_priority(req.priority_score) }}</span></td>
+        <td><span class="badge {{ badge_class(req.status) }}">{{ display_status(req.status) }}</span></td>
+        <td class="actions">
+          <a class="action-btn" href="{{ url_for('requests.detail', request_id=req.id) }}">Voir</a>
+          {% if session['user']['role'] == 'demandeur' %}
+          <form method="post" action="{{ url_for('requests.restore', request_id=req.id) }}" onsubmit="return confirm('Restaurer cette demande ?');">
+            <button class="action-btn success" type="submit">Restaurer</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8">Aucune demande archivée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

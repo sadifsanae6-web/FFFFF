@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Consultation fournisseur</h2>
+  <p>{{ req.code }} - {{ req.project_name }}</p>
+</div>
+
+<div class="toolbar">
+  <a class="btn" href="{{ url_for('procurement.archived_offers', request_id=req.id) }}">Voir archives</a>
+</div>
+
+<div class="detail-card">
+  <div class="detail-grid">
+    <div><div class="label">Service</div>{{ req.department }}</div>
+    <div><div class="label">Montant initial</div>{{ '%.2f'|format(req.estimated_amount) }} DH</div>
+    <div><div class="label">Fournisseur retenu</div>{{ (offers_list|selectattr('is_selected')|first).supplier_name if offers_list|selectattr('is_selected')|list else '-' }}</div>
+    <div><div class="label">Nombre d'offres</div>{{ offers_list|length }}</div>
+  </div>
+</div>
+
+<div class="panel section">
+  <h3>Offres fournisseurs actives</h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Fournisseur</th>
+        <th>Email</th>
+        <th>Téléphone</th>
+        <th>Adresse</th>
+        <th>Service</th>
+        <th>Interlocuteur</th>
+        <th>Réf. fournisseur</th>
+        <th>Choix</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for offer in offers_list %}
+      <tr>
+        <td>{{ offer.supplier_name }}</td>
+        <td>{{ offer.supplier_email or '-' }}</td>
+        <td>{{ offer.supplier_phone or '-' }}</td>
+        <td>{{ offer.supplier_address or '-' }}</td>
+        <td>{{ offer.supplier_service or '-' }}</td>
+        <td>{{ offer.contact_person or '-' }}</td>
+        <td>{{ offer.supplier_reference or '-' }}</td>
+        <td>
+          {% if offer.is_selected %}<span class="badge success">Sélectionnée</span>
+          {% elif offer.is_plan_b_offer %}<span class="badge slate">Plan B</span>
+          {% else %}-{% endif %}
+        </td>
+        <td class="actions">
+          <a class="action-btn" href="{{ url_for('procurement.generate_offer_price_request', offer_id=offer.id) }}">Demande de prix</a>
+          <form method="post" action="{{ url_for('procurement.select_offer', offer_id=offer.id) }}"><button class="action-btn" type="submit">Sélectionner</button></form>
+          <a class="action-btn" href="{{ url_for('procurement.edit_offer', offer_id=offer.id) }}">Modifier</a>
+          <form method="post" action="{{ url_for('procurement.archive_offer', offer_id=offer.id) }}" onsubmit="return confirm('Archiver cette offre ?');"><button class="action-btn warning" type="submit">Archiver</button></form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="9">Aucune offre enregistrée.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<form method="post" class="panel form-grid section" id="supplier-offer-form">
+  <h3 class="full">Ajouter une offre</h3>
+  <label>Fournisseur
+    <input name="supplier_name" id="supplier_name" list="supplier_name_list" required placeholder="Choisir ou saisir un fournisseur">
+    <datalist id="supplier_name_list">
+      {% for supplier in supplier_catalog %}
+      <option value="{{ supplier.name }}"></option>
+      {% endfor %}
+    </datalist>
+  </label>
+  <label>Email fournisseur<input type="text" name="supplier_email" id="supplier_email" placeholder="contact@fournisseur.com"></label>
+  <label>Téléphone fournisseur<input name="supplier_phone" id="supplier_phone" placeholder="06 00 00 00 00"></label>
+  <label>Adresse fournisseur<input name="supplier_address" id="supplier_address" placeholder="Adresse du fournisseur"></label>
+  <label>Service<input name="supplier_service" id="supplier_service" placeholder="Service fournisseur"></label>
+  <label>Interlocuteur<input name="contact_person" placeholder="Nom du contact"></label>
+  <label>Réf. fournisseur<input name="supplier_reference" placeholder="Référence interne fournisseur"></label>
+  <label class="full">Notes<textarea name="notes" rows="3" placeholder="Notes à afficher dans la demande de prix"></textarea></label>
+  <label class="full">REMARQUES<textarea name="remarks" rows="3" placeholder="Remarques à afficher dans le bon de commande"></textarea></label>
+  <label>Type d'offre<select name="is_plan_b_offer"><option value="0">Offre principale</option><option value="1">Offre plan B</option></select></label>
+  <div class="full"><button class="btn primary" type="submit">Ajouter l'offre</button></div>
+</form>
+<script>
+  const supplierCatalog = {{ supplier_catalog | tojson }};
+  const supplierByName = Object.fromEntries(supplierCatalog.map(item => [item.name.toLowerCase(), item]));
+  const supplierSelect = document.getElementById('supplier_name');
+  const emailInput = document.getElementById('supplier_email');
+  const phoneInput = document.getElementById('supplier_phone');
+  const addressInput = document.getElementById('supplier_address');
+  const serviceInput = document.getElementById('supplier_service');
+
+  function fillSupplierFields(input){
+    const selected = supplierByName[(input.value || '').trim().toLowerCase()] || {};
+    emailInput.value = selected.email || '';
+    phoneInput.value = selected.phone || '';
+    addressInput.value = selected.address || '';
+    serviceInput.value = selected.service || '';
+  }
+
+  supplierSelect?.addEventListener('change', function () { fillSupplierFields(this); });
+  supplierSelect?.addEventListener('input', function () { fillSupplierFields(this); });
+</script>
+
+<div class="section actions-inline">
+  {% if req.get_selected_offer() %}
+    <form method="post" action="{{ url_for('procurement.create_order', request_id=req.id) }}"><button class="btn primary" type="submit">Créer la commande</button></form>
+    <a class="btn" href="{{ url_for('procurement.generate_purchase_order_document', request_id=req.id) }}">Bon de commande</a>
+  {% else %}<p class="muted">Sélectionnez d'abord une offre pour créer la commande.</p>{% endif %}
+</div>
+{% endblock %}

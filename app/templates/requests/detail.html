@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Détail demande</h2>
+  <p>{{ req.code }} - {{ req.project_name }}</p>
+</div>
+
+<div class="detail-card">
+  <div class="detail-head">
+    <div class="detail-title">{{ req.project_name }}</div>
+    <span class="badge {{ badge_class(req.status) }}">{{ display_status(req.status) }}</span>
+  </div>
+  <div class="muted" style="margin-bottom:12px">{{ req.description or 'Aucune description.' }}</div>
+  <div class="detail-grid">
+    <div><div class="label">Demandeur</div>{{ req.requester.full_name }}</div>
+    <div><div class="label">Service</div>{{ req.department }}</div>
+    <div><div class="label">Type</div>{{ req.purchase_type }}</div>
+    <div><div class="label">Montant estimé</div>{{ '%.2f'|format(req.estimated_amount) }} DH</div>
+    <div><div class="label">Priorité</div><span class="priority-pill">{{ format_priority(req.priority_score) }}</span></div>
+    <div><div class="label">Date de besoin</div>{{ req.need_date.strftime('%d/%m/%Y') if req.need_date else '-' }}</div>
+    <div><div class="label">Fournisseur sélectionné</div>{{ (req.offers|selectattr('is_selected')|first).supplier_name if req.offers|selectattr('is_selected')|list else '-' }}</div>
+  </div>
+</div>
+
+<div class="panel section">
+  <h3>Lignes de la demande</h3>
+  <table class="data-table">
+    <thead><tr><th>#</th><th>Désignation</th><th>Référence</th><th>Code fabriquant</th><th>UM</th><th>Qté</th><th>PU estimé</th><th>Total estimé</th><th>CQ</th><th>Site</th></tr></thead>
+    <tbody>
+      {% for line in req.lines %}
+      <tr>
+        <td>{{ line.line_no }}</td><td>{{ line.item_name }}</td><td>{{ line.item_reference or '-' }}</td><td>{{ line.manufacturer_code or '-' }}</td><td>{{ line.uom }}</td>
+        <td>{{ line.quantity }}</td><td>{{ '%.2f'|format(line.estimated_unit_price) }} DH</td><td>{{ '%.2f'|format(line.estimated_total_amount) }} DH</td><td>{{ 'Oui' if line.quality_control_required else 'Non' }}</td><td>{{ line.delivery_site }}</td>
+      </tr>
+      {% else %}<tr><td colspan="10">Aucune ligne.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <strong>Pièces jointes</strong>
+  <table class="data-table">
+    <thead><tr><th>Nom</th><th>Ajoutée le</th><th>Action</th></tr></thead>
+    <tbody>
+      {% for att in req.attachments %}
+      <tr>
+        <td>{{ att.filename }}</td>
+        <td>{{ att.created_at.strftime('%d/%m/%Y %H:%M') if att.created_at else '-' }}</td>
+        <td class="actions">
+          <a class="action-btn" href="{{ url_for('requests.download_attachment', attachment_id=att.id) }}">Consulter</a>
+          {% if session['user']['role'] == 'demandeur' and req.requester_id == session['user']['id'] %}
+          <form method="post" action="{{ url_for('requests.delete_attachment', attachment_id=att.id) }}" onsubmit="return confirm('Supprimer cette pièce jointe ?');"><button class="action-btn danger" type="submit">Supprimer</button></form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="3">Aucune pièce jointe.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if req.approver_comment %}
+<div class="panel section"><strong>Commentaire approbateur</strong><div class="muted">{{ req.approver_comment }}</div></div>
+{% endif %}
+
+{% if session['user']['role'] == 'approbateur' and req.status == 'en_attente_approbation' %}
+<div class="section">
+  <form method="post" action="{{ url_for('requests.approve', request_id=req.id) }}" class="panel form-grid single">
+    <label>Commentaire de validation<textarea name="approver_comment" placeholder="Commentaire optionnel"></textarea></label>
+    <div class="actions"><button class="action-btn primary" type="submit">Valider</button></div>
+  </form>
+  <form method="post" action="{{ url_for('requests.reject', request_id=req.id) }}" class="panel form-grid single section">
+    <label>Motif du refus<textarea name="approver_comment" placeholder="Motif du refus"></textarea></label>
+    <div class="actions"><button class="action-btn danger" type="submit">Refuser</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

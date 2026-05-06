@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>{{ title }}</h2>
+  <p>{{ subtitle }}</p>
+</div>
+{% set cards = [
+  ('retard', 'EN RETARD'),
+  ('aujourdhui', "AUJOURD'HUI"),
+  ('avenir', 'À VENIR'),
+  ('total', 'Total demandes'),
+  ('en_attente', 'En attente')
+] %}
+<div class="cards-grid five">
+  {% for key, label in cards %}
+  <div class="stat-card">
+    <div class="title">{{ label }}</div>
+    <div class="value">{{ stats[key] }}</div>
+  </div>
+  {% endfor %}
+</div>
+<div class="panel">
+  <h3>Vue générale des achats</h3>
+  <div class="muted" style="margin-bottom:10px">Montant cumulé : {{ '%.2f'|format(requests_list|sum(attribute='estimated_amount')) }} DH</div>
+  <table class="data-table">
+    <thead>
+      <tr><th>N°</th><th>Type</th><th>Projet</th><th>Montant</th><th>Priorité</th><th>Statut</th><th>Date</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+      {% for req in requests_list %}
+      <tr>
+        <td>{{ req.code }}</td>
+        <td>{{ req.purchase_type }}</td>
+        <td>{{ req.project_name }}</td>
+        <td>{{ '%.2f'|format(req.estimated_amount) }} DH</td>
+        <td><span class="priority-pill">{{ format_priority(req.priority_score) }}</span></td>
+        <td><span class="badge {{ badge_class(req.status) }}">{{ display_status(req.status) }}</span></td>
+        <td>{{ req.need_date.strftime('%d/%m/%Y') if req.need_date else '-' }}</td>
+        <td><a class="action-btn" href="{{ url_for('requests.detail', request_id=req.id) }}">Voir</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Commandes</h2><p>Suivi des commandes et gestion du plan B fournisseur</p></div>
+<div class="section actions-inline"><a class="btn" href="{{ url_for('procurement.archived_orders') }}">Voir archives</a></div>
+<div class="panel">
+  <table class="data-table">
+    <thead><tr><th>N° commande</th><th>Demande</th><th>Projet</th><th>Fournisseur</th><th>Contact</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for order in orders_list %}
+      <tr>
+        <td>{{ order.code }}</td><td>{{ order.purchase_request.code }}</td><td>{{ order.purchase_request.project_name }}</td><td>{{ order.supplier_name }}</td>
+        <td>{{ order.supplier_email or '-' }}<br>{{ order.supplier_phone or '' }}</td>
+        <td>{{ '%.2f'|format(order.amount) }} DH</td>
+        <td><span class="badge {{ badge_class(order.status) }}">{{ display_status(order.status) }}</span></td>
+        <td class="actions-inline"><a class="action-btn" href="{{ url_for('procurement.order_detail', order_id=order.id) }}">Voir</a><a class="action-btn" href="{{ url_for('procurement.edit_order', order_id=order.id) }}">Modifier</a><form method="post" action="{{ url_for('procurement.archive_order', order_id=order.id) }}" onsubmit="return confirm('Archiver cette commande ?');"><button class="action-btn warning" type="submit">Archiver</button></form></td>
+      </tr>
+      {% else %}<tr><td colspan="8">Aucune commande trouvée.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

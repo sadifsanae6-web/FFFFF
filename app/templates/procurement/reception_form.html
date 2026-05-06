@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h2>Réception fournisseur</h2>
+  <p>{{ order.code }} - {{ order.supplier_name }}</p>
+</div>
+
+<div class="detail-card">
+  <div class="detail-grid">
+    <div><div class="label">Statut commande</div><span class="badge {{ badge_class(order.status) }}">{{ display_status(order.status) }}</span></div>
+    <div><div class="label">Qté commandée</div>{{ order.qty_ordered_total }}</div>
+    <div><div class="label">Qté livrée</div>{{ order.qty_delivered_total }}</div>
+    <div><div class="label">Qté acceptée</div>{{ order.qty_accepted_total }}</div>
+    <div><div class="label">Qté rejetée</div>{{ order.qty_rejected_total }}</div>
+    <div><div class="label">Reste à livrer</div>{% if order.status == 'annulee' %}0{% else %}{{ order.qty_remaining_total }}{% endif %}</div>
+    <div><div class="label">Paiement</div>{% if order.status == 'annulee' or order.payment_blocked %}<span class="badge danger">Bloqué</span>{% else %}<span class="badge success">Autorisé</span>{% endif %}</div>
+  </div>
+</div>
+
+{% if order.status == 'annulee' %}
+<div class="panel section"><h3>1. Informations générales de livraison</h3><p class="muted">Commande annulée : la saisie de réception est désactivée.</p></div>
+{% else %}
+<form method="post" action="{{ url_for('procurement.save_reception', order_id=order.id) }}" enctype="multipart/form-data" class="panel section">
+  <input type="hidden" name="stage" value="logistic">
+  <h3>1. Informations générales de livraison</h3>
+  <div class="form-grid">
+    <label>Date de réception<input type="date" name="reception_date" ></label>
+    <label>N° BL<input name="delivery_note_number" placeholder="BL fournisseur"></label>
+    <label>Transporteur<input name="carrier"></label>
+    <label>Site<input name="reception_site" value="{{ order.reception_site }}"></label>
+    <label>Statut logistique<select name="logistic_status" id="logistic_status"><option value="complete">Réception conforme</option><option value="partielle">Réception partielle</option><option value="refus_partiel">Refus partiel à quai</option><option value="refus_total">Refus total à quai</option></select></label>
+    <label>Réception finale<select name="is_final"><option value="0">Non</option><option value="1">Oui</option></select></label>
+    <label class="full">Motif de refus à quai<textarea name="refusal_reason" placeholder="Obligatoire en cas de refus total ou partiel"></textarea></label>
+    <label class="full">Observations<textarea name="observations" placeholder="Commentaires logistiques généraux"></textarea></label>
+    <label class="full">Pièces jointes<input type="file" id="reception-attachments" name="attachments" multiple></label>
+    <div id="reception-attachments-list" class="full"></div>
+  </div>
+
+  <h3 class="section">2. Lignes reçues</h3>
+  <table class="data-table responsive-table">
+    <thead>
+      <tr>
+        <th>Article</th><th>Référence</th><th>Qté cmd</th><th>Déjà livrée</th><th>Acceptée</th><th>Rejetée</th><th>Restante</th><th>Livrée maintenant</th><th>Refus quai</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in order.lines %}
+      <tr>
+        <td>{{ line.item_name }}</td>
+        <td>{{ line.item_reference or '-' }}</td>
+        <td>{{ line.quantity_ordered }}</td>
+        <td>{{ line.quantity_delivered_total }}</td>
+        <td>{{ line.quantity_accepted_total }}</td>
+        <td>{{ line.quantity_rejected_total }}</td>
+        <td>{% if order.status == 'annulee' %}0{% else %}{{ line.quantity_remaining_to_deliver }}{% endif %}</td>
+        <td><input type="number" step="0.01" name="delivered_now_{{ line.id }}" value="0"></td>
+        <td><input type="number" step="0.01" name="refused_dock_{{ line.id }}" value="0"></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="section actions-inline"><button class="btn primary" type="submit">Enregistrer la réception logistique</button><a class="btn" href="{{ url_for('procurement.receptions') }}">Retour</a></div>
+</form>
+{% endif %}
+
+<div class="panel section">
+  <h3>3. Décisions qualité</h3>
+  {% if pending_quality %}
+  <div class="muted" style="margin-bottom:12px">Réceptions en attente de décision qualité : {% for rec in pending_quality %}<a class="action-btn" href="{{ url_for('procurement.reception_detail', order_id=order.id, reception_id=rec.id) }}">{{ rec.code }}</a>{% endfor %}</div>
+  {% endif %}
+
+  {% if selected_reception %}
+  <div class="detail-card" style="margin-bottom:12px">
+    <div class="detail-grid">
+      <div><div class="label">Réception</div>{{ selected_reception.code }}</div>
+      <div><div class="label">Date</div>{{ selected_reception.reception_date.strftime('%d/%m/%Y') }}</div>
+      <div><div class="label">BL</div>{{ selected_reception.delivery_note_number or '-' }}</div>
+      <div><div class="label">Logistique</div><span class="badge {{ badge_class(selected_reception.logistic_status) }}">{{ display_status(selected_reception.logistic_status) }}</span></div>
+            <div><div class="label">Observations</div>{{ selected_reception.observations or '-' }}</div>
+    </div>
+  </div>
+
+  
+  {% if selected_reception and reception_attachments %}
+  <div class="panel section">
+    <strong>Pièces jointes de la livraison</strong>
+    <table class="data-table">
+      <thead><tr><th>Nom</th><th>Ajoutée le</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for att in reception_attachments %}
+        <tr>
+          <td>{{ att.filename }}</td>
+          <td>{{ att.created_at.strftime('%d/%m/%Y %H:%M') if att.created_at else '-' }}</td>
+          <td class="actions-inline">
+            <a class="action-btn" href="{{ url_for('procurement.download_attachment', attachment_id=att.id) }}">Consulter</a>
+            <form method="post" action="{{ url_for('procurement.delete_attachment', attachment_id=att.id) }}" onsubmit="return confirm('Supprimer cette pièce jointe ?');"><button class="action-btn danger" type="submit">Supprimer</button></form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if selected_reception.status == 'qualite_a_traiter' %}
+  <form method="post" action="{{ url_for('procurement.save_reception', order_id=order.id) }}" class="form-grid">
+    <input type="hidden" name="stage" value="quality">
+    <input type="hidden" name="reception_id" value="{{ selected_reception.id }}">
+    <table class="data-table">
+      <thead><tr><th>Article</th><th>Livrée</th><th>Acceptée</th><th>Refus quai</th><th>Gravité</th><th>Décision</th><th>Montant à payer</th></tr></thead>
+      <tbody>
+        {% for line in selected_reception.lines %}
+        <tr>
+          <td>{{ line.order_line.item_name }}</td>
+          <td>{{ line.quantity_delivered_now }}</td>
+          <td><input class="accepted-input" type="number" step="0.01" min="0" max="{{ line.quantity_delivered_now }}" data-unit-price="{{ line.order_line.unit_price }}" name="accepted_{{ line.id }}" value="{{ line.quantity_delivered_now if line.quantity_refused_dock == 0 else 0 }}"></td>
+          <td>{{ line.quantity_refused_dock }}</td>
+          <td><select name="severity_{{ line.id }}"><option value="produit_conforme">Produit conforme</option><option value="mineure">Mineure</option><option value="majeure" selected>Majeure</option><option value="critique">Critique</option></select></td>
+          <td><select class="decision-select" name="nc_decision_{{ line.id }}"><option value="accepter">Accepter</option><option value="remplacement">Remplacement</option><option value="rejeter">Rejeter</option></select></td>
+          <td><span class="payable-amount">{{ '%.2f'|format((line.quantity_delivered_now if line.quantity_refused_dock == 0 else 0) * line.order_line.unit_price) }} DH</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="actions-inline"><button class="btn primary" type="submit">Clôturer la décision qualité</button></div>
+  </form>
+  {% else %}
+  <div class="muted">Cette réception qualité est déjà clôturée.</div>
+  {% endif %}
+  {% else %}
+  <div class="muted">Aucune réception en attente de décision qualité.</div>
+  {% endif %}
+</div>
+
+<div class="panel section">
+  <h3>Journal d'audit</h3>
+  <table class="data-table"><thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détail</th></tr></thead><tbody>{% for log in logs %}<tr><td>{{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ log.actor_name }}</td><td>{{ log.action }}</td><td>{{ log.details }}</td></tr>{% else %}<tr><td colspan="4">Aucun évènement.</td></tr>{% endfor %}</tbody></table>
+</div>
+<script>
+(function setupManagedFiles(){
+  const input = document.getElementById('reception-attachments');
+  const list = document.getElementById('reception-attachments-list');
+  if(!input || !list){ return; }
+  let currentFiles = [];
+  function syncInput(){
+    const dt = new DataTransfer();
+    currentFiles.forEach(file => dt.items.add(file));
+    input.files = dt.files;
+  }
+  function render(){
+    if(currentFiles.length === 0){
+      list.innerHTML = '<div class="muted">Aucun nouveau fichier sélectionné.</div>';
+      return;
+    }
+    list.innerHTML = currentFiles.map((file, index) => `
+      <div class="actions-inline" style="justify-content:space-between;margin:6px 0">
+        <span>${file.name}</span>
+        <button type="button" class="action-btn danger" data-index="${index}">Retirer</button>
+      </div>`).join('');
+    list.querySelectorAll('button[data-index]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFiles.splice(Number(btn.dataset.index), 1);
+        syncInput();
+        render();
+      });
+    });
+  }
+  input.addEventListener('change', () => {
+    currentFiles = currentFiles.concat(Array.from(input.files));
+    syncInput();
+    render();
+  });
+  render();
+})();
+</script>
+
+
+<script>
+(function setupQualityPayable(){
+  const rows = document.querySelectorAll('.accepted-input');
+  function updateRow(input){
+    const tr = input.closest('tr');
+    const decision = tr.querySelector('.decision-select');
+    const payable = tr.querySelector('.payable-amount');
+    const unit = parseFloat(input.dataset.unitPrice || '0');
+    let accepted = parseFloat(input.value || '0');
+    payable.textContent = (accepted * unit).toFixed(2) + ' DH';
+  }
+  document.querySelectorAll('.decision-select').forEach(select => {
+    select.addEventListener('change', () => updateRow(select.closest('tr').querySelector('.accepted-input')));
+  });
+  rows.forEach(input => {
+    input.addEventListener('input', () => updateRow(input));
+    updateRow(input);
+  });
+})();
+</script>
+
+{% endblock %}
+

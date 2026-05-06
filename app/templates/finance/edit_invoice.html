@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header"><h2>Modifier une facture</h2><p>{{ invoice.code }}</p></div>
+<form method="post" class="panel form-grid">
+  <label>Fournisseur<input name="supplier_name" value="{{ invoice.supplier_name }}"></label>
+  <label>Montant<input type="number" step="0.01" name="amount" value="{{ invoice.amount }}" required></label>
+  <label>Date facture<input type="date" name="invoice_date" value="{{ invoice.invoice_date }}"></label>
+  <label>Échéance<input type="date" name="due_date" value="{{ invoice.due_date if invoice.due_date else '' }}"></label>
+  <label class="full">Commande liée<select name="order_id" required>{% for o in orders %}<option value="{{ o.id }}" {% if invoice.order_id==o.id %}selected{% endif %}>{{ o.code }} - {{ o.purchase_request.code }} - {{ o.supplier_name }} | Accepté {{ '%.2f'|format(o.accepted_amount) }} DH</option>{% endfor %}</select></label>
+  {% if invoice.warning_message %}<div class="full"><span class="badge warning">{{ invoice.warning_message }}</span></div>{% endif %}
+  <div class="full"><button class="btn primary" type="submit">Enregistrer les modifications</button></div>
+</form>
+{% endblock %}
